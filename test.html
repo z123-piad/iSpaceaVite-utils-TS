@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body {
+                margin: 0;
+                width: 100%;
+                height: 100%;
+                background-color: pink;
+            }
+
+            circle {
+                stroke: #fff;
+                cursor: move;
+            }
+
+            circle.selected {
+                fill: steelblue;
+            }
+
+            .connector {
+                stroke: #000;
+                stroke-width: 4px;
+            }
+
+            .connector.selected {
+                stroke: steelblue;
+            }
+
+            .length-line {
+                stroke: #000;
+                stroke-width: 1px;
+            }
+
+            .length-rect {
+                fill: #fff;
+            }
+
+            text {
+                font-family: "Helvetica Neue", sans-serif;
+                text-anchor: middle;
+            }
+
+            .length-text.selected {
+                fill: steelblue;
+            }
+
+            .label-text {
+                fill: #888;
+                font-size: 0.8em;
+            }
+        </style>
+    </head>
+
+    <body>
+        <script src="https://d3js.org/d3.v5.min.js"></script>
+        <script src="https://unpkg.com/geometric@1.0.0/build/geometric.min.js"></script>
+        <script>
+            var first_draw = 1;
+
+            var width = 1920,
+                height = 900;
+            var initial_separation = 200;
+            var rect_width = 40,
+                rect_height = 20;
+
+            var data = [
+                    [-initial_separation + width / 2, height / 2],
+                    [initial_separation + width / 2, height / 2],
+                ],
+                full_datum,
+                half_datum,
+                full_translate,
+                half_translate;
+            var angle = geometric.lineAngle([data[0], data[1]]);
+            var full_distance = geometric.lineLength([data[0], data[1]]);
+            var half_distance = full_distance / 2;
+
+            var svg = d3
+                .select("body")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            var connector = svg.append("line").attr("class", "connector");
+
+            var full_length_g = svg.append("g");
+            var full_length_line = full_length_g
+                .append("line")
+                .attr("class", "length-line");
+            var full_length_rect = full_length_g
+                .append("rect")
+                .attr("class", "length-rect");
+            var full_length_text_g = full_length_g.append("g");
+            var full_length_text = full_length_text_g
+                .append("text")
+                .attr("class", "length-text")
+                .attr("dx", rect_width / 2)
+                .attr("dy", 6);
+            full_length_text_g
+                .append("text")
+                .attr("class", "label-text")
+                .attr("dx", rect_width / 2)
+                .attr("dy", -10)
+                .text("全长");
+
+            var half_length_g = svg.append("g");
+            var half_length_line = half_length_g
+                .append("line")
+                .attr("class", "length-line");
+            var half_length_rect = half_length_g
+                .append("rect")
+                .attr("class", "length-rect");
+            var half_length_text_g = half_length_g.append("g");
+            var half_length_text = half_length_text_g
+                .append("text")
+                .attr("class", "length-text")
+                .attr("dx", rect_width / 2)
+                .attr("dy", 6);
+            half_length_text_g
+                .append("text")
+                .attr("class", "label-text")
+                .attr("dx", rect_width / 2)
+                .attr("dy", 22)
+                .text("一半");
+
+            var instructions = svg
+                .append("text")
+                .attr(
+                    "transform",
+                    "translate(" + [width / 2, -75 + height / 2] + ")"
+                )
+                .text("拖动任意一个点即可开始。");
+
+            var drag_generator = d3
+                .drag()
+                .on("start", (_) => {
+                    if (first_draw) {
+                        instructions
+                            .transition()
+                            .style("opacity", 1e-6)
+                            .remove();
+                        first_draw = 0;
+                    }
+
+                    d3.selectAll("circle").classed("selected", 1);
+                    connector.classed("selected", 1);
+                    d3.selectAll(".length-text").classed("selected", 1);
+                })
+                .on("drag", (d, i) => {
+                    data[i] = [event.pageX, event.pageY];
+                    angle = geometric.lineAngle([data[0], data[1]]);
+                    full_distance = geometric.lineLength([data[0], data[1]]);
+                    half_distance = full_distance / 2;
+
+                    draw();
+                })
+                .on("end", (_) => {
+                    d3.selectAll("circle").classed("selected", 0);
+                    connector.classed("selected", 0);
+                    d3.selectAll(".length-text").classed("selected", 0);
+                });
+
+            draw();
+
+            function draw() {
+                var points = svg.selectAll("circle").data(data);
+
+                points
+                    .enter()
+                    .append("circle")
+                    .attr("class", (d, i) => "circle-" + i)
+                    .attr("r", 8)
+                    .merge(points)
+                    .attr("transform", (d) => "translate(" + d + ")")
+                    .call(drag_generator);
+
+                connector
+                    .datum(data)
+                    .attr("x1", (d) => d[0][0])
+                    .attr("y1", (d) => d[0][1])
+                    .attr("x2", (d) => d[1][0])
+                    .attr("y2", (d) => d[1][1]);
+
+                full_datum = data.map((d) =>
+                    geometric.pointTranslate(d, angle - 90, 20)
+                );
+                full_translate = (d) =>
+                    geometric.pointTranslate(
+                        geometric.lineMidpoint([d[0], d[1]]),
+                        angle - 180,
+                        rect_width / 2
+                    );
+
+                full_length_line
+                    .datum(full_datum)
+                    .attr("x1", (d) => d[0][0])
+                    .attr("y1", (d) => d[0][1])
+                    .attr("x2", (d) => d[1][0])
+                    .attr("y2", (d) => d[1][1]);
+
+                full_length_rect
+                    .datum(full_datum)
+                    .attr("width", rect_width)
+                    .attr("height", rect_height)
+                    .attr(
+                        "transform",
+                        (d) =>
+                            "translate(" +
+                            full_translate(d) +
+                            ") rotate(" +
+                            angle +
+                            ")"
+                    )
+                    .attr("y", -rect_height / 2);
+
+                full_length_text_g
+                    .datum(full_datum)
+                    .attr(
+                        "transform",
+                        (d) =>
+                            "translate(" +
+                            full_translate(d) +
+                            ") rotate(" +
+                            angle +
+                            ")"
+                    );
+
+                full_length_text.text(Math.round(full_distance));
+
+                half_datum = [
+                    data[0],
+                    geometric.lineMidpoint([data[0], data[1]]),
+                ].map((d) => geometric.pointTranslate(d, angle - 90, -20));
+                half_translate = (d) =>
+                    geometric.pointTranslate(
+                        geometric.lineMidpoint([d[0], d[1]]),
+                        angle - 180,
+                        rect_width / 2
+                    );
+
+                half_length_line
+                    .datum(half_datum)
+                    .attr("x1", (d) => d[0][0])
+                    .attr("y1", (d) => d[0][1])
+                    .attr("x2", (d) => d[1][0])
+                    .attr("y2", (d) => d[1][1]);
+
+                half_length_rect
+                    .datum(half_datum)
+                    .attr("width", rect_width)
+                    .attr("height", rect_height)
+                    .attr(
+                        "transform",
+                        (d) =>
+                            "translate(" +
+                            half_translate(d) +
+                            ") rotate(" +
+                            angle +
+                            ")"
+                    )
+                    .attr("y", -rect_height / 2);
+
+                half_length_text_g
+                    .datum(half_datum)
+                    .attr(
+                        "transform",
+                        (d) =>
+                            "translate(" +
+                            half_translate(d) +
+                            ") rotate(" +
+                            angle +
+                            ")"
+                    );
+
+                half_length_text.text(Math.round(half_distance));
+            }
+        </script>
+    </body>
+</html>
