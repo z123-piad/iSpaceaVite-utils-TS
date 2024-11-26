@@ -9,7 +9,7 @@ export function setupCounter(element: HTMLButtonElement) {
 }
 
 /**
- * 
+ *
  * @param a 第一個參數
  * @param b 第二個參數
  * @returns 返回兩個參數的和
@@ -17,3 +17,6 @@ export function setupCounter(element: HTMLButtonElement) {
 export const numSum = (a: number, b: number) => {
   return a + b;
 }
+
+export * as iMath from "./iMath";
+export * as common from "./common";

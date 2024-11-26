@@ -1,4 +1,7 @@
+import { LineAndSurfaceRelations } from './enums/line-surface-relations.enum';
 // https://juejin.cn/post/7006135603284672525
+
+import { LineAndSurfaceRelations } from "./enums/enum.t"
 
 
 type LonLat = [number, number]
@@ -144,8 +147,6 @@ const pointInPolygon = (point: LonLat, polygon: Polygon): number => {
  * 点和面关系
  * @param {LonLat} point 点
  * @param {Ring} ring 单个闭合面的坐标
- * @todo
- *
  * @return {number} inside 点和面关系，0:多边形外，1：多边形内，2：多边形边上
  */
 const pointInRing = (point: LonLat, ring: Ring): number => {
@@ -238,12 +239,13 @@ const intersectLineAndLine = (line1: LineSegment, line2: LineSegment): number =>
 
 /**
  * 线和面关系
+ * 线和面关系，0:相离，1：相交，2：包含，3：内切，4：外切
  * @param {LineSegment} line 线段；[[经度,纬度],[经度,纬度]]；例：[[116.01,40.01],[116.52,40.01]]
  * @param {Polygon} polygon 面；geojson格式中的coordinates；例：[[[116.1,39.5],[116.1,40.5],[116.9,40.5],[116.9,39.5]],[[116.3,39.7],[116.3,40.3],[116.7,40.3],[116.7,39.7]]]
  *
  * @return {number} intersect 线和面关系；0:相离，1：相交，2：包含，3：内切，4：外切
  */
-const intersectLineAndPolygon = (line: LineSegment, polygon: Polygon): number => {
+const intersectLineAndPolygon = (line: LineSegment, polygon: Polygon): LineAndSurfaceRelations => {
   let isTangent = false
   let isInNum = 0
   let intersect = 0
@@ -251,7 +253,7 @@ const intersectLineAndPolygon = (line: LineSegment, polygon: Polygon): number =>
     // 线和面关系，0:相离，1：相交，2：包含，3：内切，4：外切
     intersect = intersectLineAndRing(line, polygon[i])
     if (intersect === 1) {
-      return 1
+      return LineAndSurfaceRelations.Intersect
     } else if (intersect === 2) {
       isInNum++
     } else if (intersect === 3) {
@@ -263,15 +265,15 @@ const intersectLineAndPolygon = (line: LineSegment, polygon: Polygon): number =>
   }
   if (isInNum % 2 == 0) {
     if (isTangent) {
-      return 4 // 外切
+      return LineAndSurfaceRelations.ExternallyTangent // 外切
     } else {
-      return 0 // 相离
+      return LineAndSurfaceRelations.Disjoint
     }
   } else if (isInNum % 2 == 1) {
     if (isTangent) {
-      return 3 // 内切
+      return LineAndSurfaceRelations.InternallyTangent // 内切
     } else {
-      return 2 // 包含
+      return LineAndSurfaceRelations.Contain // 包含
     }
   }
 }
@@ -321,11 +323,11 @@ const convertPolygonToPolyline = (polygonGeoJson: any): any => {
   const polylineGeoJson = JSON.parse(JSON.stringify(polygonGeoJson))
 
   for (let i = 0; i < polylineGeoJson.features.length; i++) {
-    const _multiLineString = []
+    const _multiLineString: any = []
     if (polylineGeoJson.features[i].geometry.type === 'Polygon') {
       const _polygon = polylineGeoJson.features[i].geometry.coordinates
       _polygon.forEach((_linearRing: any) => {
-        const _lineString = _linearRing
+        const _lineString: any = _linearRing
         _multiLineString.push(_lineString)
       })
     } else if (polylineGeoJson.features[i].geometry.type === 'MultiPolygon') {
@@ -346,7 +348,7 @@ const convertPolygonToPolyline = (polygonGeoJson: any): any => {
   return polylineGeoJson
 }
 
-export {
+const common = {
   getDistance,
   getLinePoint,
   getFootPoint,
@@ -358,8 +360,11 @@ export {
   intersectLineAndLine,
   intersectLineAndRing,
   intersectLineAndPolygon,
-  convertPolygonToPolyline,
+  convertPolygonToPolyline
+}
 
+export default common;
+export type {
   LonLat,
   LineString,
   Polygon,
